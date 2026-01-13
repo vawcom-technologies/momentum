@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/game_provider.dart';
 import '../models/game_state.dart';
 import '../models/quest.dart';
+import '../widgets/level_up_overlay.dart';
+import '../widgets/combo_animation.dart';
 import 'quests_screen.dart';
 import 'stats_screen.dart';
 import 'achievements_screen.dart';
 import 'settings_screen.dart';
+import 'life_hub_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -15,33 +20,72 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with TickerProviderStateMixin {
   int _currentIndex = 0;
+  late AnimationController _navController;
+
+  @override
+  void initState() {
+    super.initState();
+    _navController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  @override
+  void dispose() {
+    _navController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Consumer<GameProvider>(
-        builder: (context, provider, child) {
-          final gameState = provider.gameState;
-          if (gameState == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          return IndexedStack(
-            index: _currentIndex,
-            children: [
-              _buildDashboard(gameState, provider),
-              const QuestsScreen(),
-              const StatsScreen(),
-              const AchievementsScreen(),
-              const SettingsScreen(),
-            ],
+    return Consumer<GameProvider>(
+      builder: (context, provider, child) {
+        final gameState = provider.gameState;
+        if (gameState == null) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
           );
-        },
-      ),
-      bottomNavigationBar: _buildBottomNav(),
+        }
+
+        return Stack(
+          children: [
+            Scaffold(
+              backgroundColor: Colors.white,
+              body: IndexedStack(
+                index: _currentIndex,
+                children: [
+                  _buildDashboard(gameState, provider),
+                  const QuestsScreen(),
+                  const LifeHubScreen(),
+                  const StatsScreen(),
+                  const AchievementsScreen(),
+                  const SettingsScreen(),
+                ],
+              ),
+              bottomNavigationBar: _buildBottomNav(),
+            ),
+            // Level Up Overlay
+            if (provider.showLevelUpOverlay)
+              LevelUpOverlay(
+                newLevel: provider.newLevel,
+                title: _getLevelTitle(provider.newLevel),
+                onDismiss: provider.dismissLevelUpOverlay,
+              ),
+            // Combo Animation
+            if (provider.showComboAnimation && gameState.combo >= 3)
+              Positioned(
+                top: MediaQuery.of(context).size.height * 0.3,
+                left: 0,
+                right: 0,
+                child: ComboAnimation(combo: gameState.combo),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -50,88 +94,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .where((q) => q.status == QuestStatus.completed)
         .length;
     final totalQuests = gameState.dailyQuests.length;
-    final xpEarnedToday = gameState.dailyQuests
-        .where((q) => q.status == QuestStatus.completed)
-        .fold(0, (sum, q) => sum + q.xpReward);
+    final xpEarnedToday = gameState.dailyXpHistory[
+            DateTime.now().toIso8601String().split('T')[0]] ??
+        0;
 
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // Header
-            Center(
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.auto_awesome, size: 16, color: Colors.purple[700]),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Level ${gameState.level}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.purple[700],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Your Life RPG',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _getLevelTitle(gameState.level),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Header with streak
+            _buildHeader(gameState)
+                .animate()
+                .fadeIn(duration: 500.ms)
+                .slideY(begin: -0.2, end: 0),
             const SizedBox(height: 24),
 
             // XP Progress Card
             _buildXPCard(gameState),
+            const SizedBox(height: 20),
+
+            // Streak & Combo Row
+            _buildStreakComboRow(gameState)
+                .animate()
+                .fadeIn(delay: 200.ms, duration: 500.ms)
+                .slideX(begin: -0.1, end: 0),
             const SizedBox(height: 24),
 
             // Core Stats Section
-            Row(
-              children: [
-                Icon(Icons.bolt, size: 20, color: Colors.grey[800]),
-                const SizedBox(width: 8),
-                Text(
-                  'Core Stats',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              ],
-            ),
+            _buildCoreStatsHeader()
+                .animate()
+                .fadeIn(delay: 400.ms, duration: 500.ms),
             const SizedBox(height: 16),
-            _buildStatsGrid(gameState),
+            _buildStatsGrid(gameState)
+                .animate()
+                .fadeIn(delay: 500.ms, duration: 500.ms)
+                .slideY(begin: 0.1, end: 0),
             const SizedBox(height: 24),
 
             // Today's Progress Card
-            _buildTodayProgressCard(completedQuests, totalQuests, xpEarnedToday),
+            _buildTodayProgressCard(gameState, completedQuests, totalQuests, xpEarnedToday)
+                .animate()
+                .fadeIn(delay: 600.ms, duration: 500.ms)
+                .slideY(begin: 0.1, end: 0),
+            const SizedBox(height: 24),
+
+            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -223,6 +231,144 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildHeader(GameState gameState) {
+    return Center(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.purple.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.auto_awesome, size: 16, color: Colors.purple[700]),
+                const SizedBox(width: 8),
+                Text(
+                  'Level ${gameState.level}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.purple[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Your Life RPG',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _getLevelTitle(gameState.level),
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreakComboRow(GameState gameState) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildInfoCard(
+            icon: gameState.streakEmoji,
+            title: 'Streak',
+            value: '${gameState.currentStreak} days',
+            color: const Color(0xFFEF4444),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildInfoCard(
+            icon: '⚡',
+            title: 'Combo',
+            value: gameState.isComboActive ? '${gameState.combo}x' : 'None',
+            color: const Color(0xFFF59E0B),
+            isActive: gameState.isComboActive,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildInfoCard(
+            icon: '🎯',
+            title: 'Multiplier',
+            value: '${gameState.effectiveXpMultiplier.toStringAsFixed(1)}x',
+            color: const Color(0xFF22C55E),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard({
+    required String icon,
+    required String title,
+    required String value,
+    required Color color,
+    bool isActive = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 24)),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildCoreStatsHeader() {
+    return Row(
+      children: [
+        Icon(Icons.bolt, size: 20, color: Colors.grey[800]),
+        const SizedBox(width: 8),
+        Text(
+          'Core Stats',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStatsGrid(GameState gameState) {
     return GridView.count(
       crossAxisCount: 2,
@@ -230,12 +376,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
-      childAspectRatio: 1.2,
+      childAspectRatio: 1.3,
       children: [
-        _buildStatCard('Discipline', gameState.stats.discipline.toInt(), const Color(0xFFEF4444)),
-        _buildStatCard('Focus', gameState.stats.focus.toInt(), const Color(0xFF3B82F6)),
-        _buildStatCard('Health', gameState.stats.health.toInt(), const Color(0xFF22C55E)),
-        _buildStatCard('Money', gameState.stats.money.toInt(), const Color(0xFFEAB308)),
+        _buildStatCard(
+            'Discipline', gameState.stats.discipline.toInt(), const Color(0xFFEF4444)),
+        _buildStatCard(
+            'Focus', gameState.stats.focus.toInt(), const Color(0xFF3B82F6)),
+        _buildStatCard(
+            'Health', gameState.stats.health.toInt(), const Color(0xFF22C55E)),
+        _buildStatCard(
+            'Money', gameState.stats.money.toInt(), const Color(0xFFEAB308)),
       ],
     );
   }
@@ -286,7 +436,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildTodayProgressCard(int completed, int total, int xpEarned) {
+  Widget _buildTodayProgressCard(GameState gameState, int completed, int total, int xpEarned) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -309,7 +459,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 12),
           _buildProgressRow('XP Earned Today', '+$xpEarned XP', const Color(0xFF3B82F6)),
           const SizedBox(height: 12),
-          _buildProgressRow('Current Streak', '7 days 🔥', const Color(0xFFF97316)),
+          _buildProgressRow('Current Streak', '${gameState.currentStreak} days 🔥', const Color(0xFFF97316)),
         ],
       ),
     );
@@ -338,6 +488,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
@@ -358,9 +509,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               _buildNavItem(Icons.home, 'Home', 0),
               _buildNavItem(Icons.my_location, 'Quests', 1),
-              _buildNavItem(Icons.trending_up, 'Stats', 2),
-              _buildNavItem(Icons.emoji_events, 'Badges', 3),
-              _buildNavItem(Icons.settings, 'Settings', 4),
+              _buildNavItem(Icons.spa, 'Life', 2),
+              _buildNavItem(Icons.trending_up, 'Stats', 3),
+              _buildNavItem(Icons.emoji_events, 'Badges', 4),
+              _buildNavItem(Icons.settings, 'Settings', 5),
             ],
           ),
         ),
@@ -370,11 +522,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildNavItem(IconData icon, String label, int index) {
     final isSelected = _currentIndex == index;
-    return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        setState(() => _currentIndex = index);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

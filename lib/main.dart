@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/game_provider.dart';
+import 'providers/life_provider.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/dashboard_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
   runApp(const MyApp());
 }
 
@@ -13,8 +22,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => GameProvider()..initialize(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) => GameProvider()..initialize(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => LifeProvider()..initialize(),
+        ),
+      ],
       child: MaterialApp(
         title: 'Momentum - Your Life as a Video Game',
         debugShowCheckedModeBanner: false,

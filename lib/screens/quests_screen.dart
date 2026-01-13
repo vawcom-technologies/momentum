@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/game_provider.dart';
 import '../models/quest.dart';
 
-class QuestsScreen extends StatelessWidget {
+class QuestsScreen extends StatefulWidget {
   const QuestsScreen({super.key});
+
+  @override
+  State<QuestsScreen> createState() => _QuestsScreenState();
+}
+
+class _QuestsScreenState extends State<QuestsScreen> {
+  final Map<String, bool> _completingQuests = {};
 
   @override
   Widget build(BuildContext context) {
@@ -33,73 +42,103 @@ class QuestsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
-                const Text(
-                  'Daily Quests',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Complete tasks to earn XP and level up',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                            blurRadius: 12,
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        '⚔️',
+                        style: TextStyle(fontSize: 28),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Daily Quests',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'Complete tasks to earn XP',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+                    .animate()
+                    .fadeIn(duration: 500.ms)
+                    .slideX(begin: -0.1, end: 0),
                 const SizedBox(height: 24),
 
+                // Multiplier banner
+                if (gameState.effectiveXpMultiplier > 1)
+                  _buildMultiplierBanner(gameState.effectiveXpMultiplier)
+                      .animate()
+                      .fadeIn(delay: 100.ms),
+                if (gameState.effectiveXpMultiplier > 1)
+                  const SizedBox(height: 16),
+
                 // Daily Progress Card
-                _buildDailyProgressCard(completedDaily, totalDaily),
+                _buildDailyProgressCard(completedDaily, totalDaily, gameState)
+                    .animate()
+                    .fadeIn(delay: 200.ms, duration: 500.ms)
+                    .slideY(begin: 0.1, end: 0),
                 const SizedBox(height: 32),
 
                 // Daily Quests Section
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 20, color: Colors.grey[800]),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Daily Quests',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                  ],
-                ),
+                _buildSectionHeader('⏰', 'Daily Quests', dailyQuests.length)
+                    .animate()
+                    .fadeIn(delay: 300.ms),
                 const SizedBox(height: 16),
-                ...dailyQuests.map((quest) => Padding(
+                ...dailyQuests.asMap().entries.map((entry) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _buildQuestCard(context, quest, provider),
+                      child: _buildQuestCard(
+                        context,
+                        entry.value,
+                        provider,
+                        delay: 400 + (entry.key * 100),
+                      ),
                     )),
 
                 // Side Quests Section
                 if (sideQuests.isNotEmpty) ...[
                   const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Icon(Icons.local_fire_department, size: 20, color: Colors.grey[800]),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Side Quests (Optional)',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildSectionHeader('🌟', 'Side Quests (Bonus)', sideQuests.length)
+                      .animate()
+                      .fadeIn(delay: 700.ms),
                   const SizedBox(height: 16),
-                  ...sideQuests.map((quest) => Padding(
+                  ...sideQuests.asMap().entries.map((entry) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildQuestCard(context, quest, provider),
+                        child: _buildQuestCard(
+                          context,
+                          entry.value,
+                          provider,
+                          delay: 800 + (entry.key * 100),
+                        ),
                       )),
                 ],
-                const SizedBox(height: 80), // Bottom padding for nav bar
+                const SizedBox(height: 100), // Bottom padding for nav bar
               ],
             ),
           ),
@@ -108,7 +147,105 @@ class QuestsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDailyProgressCard(int completed, int total) {
+  Widget _buildMultiplierBanner(double multiplier) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF59E0B).withOpacity(0.2),
+            const Color(0xFFEF4444).withOpacity(0.2),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withOpacity(0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 24)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'XP BOOST ACTIVE!',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFF59E0B),
+                    letterSpacing: 1,
+                  ),
+                ),
+                Text(
+                  'All XP rewards are multiplied by ${multiplier.toStringAsFixed(1)}x',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[400],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${multiplier.toStringAsFixed(1)}x',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate(onPlay: (c) => c.repeat(reverse: true))
+        .shimmer(duration: 2000.ms, color: const Color(0xFFF59E0B));
+  }
+
+  Widget _buildSectionHeader(String emoji, String title, int count) {
+    return Row(
+      children: [
+        Text(emoji, style: const TextStyle(fontSize: 20)),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            '$count quests',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[400],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDailyProgressCard(int completed, int total, gameState) {
     final remaining = total - completed;
 
     return Container(
@@ -118,11 +255,11 @@ class QuestsScreen extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
+            const Color(0xFF1a1a2e),
             const Color(0xFF8B5CF6).withOpacity(0.2),
-            const Color(0xFF3B82F6).withOpacity(0.2),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.3)),
       ),
       child: Column(
@@ -134,183 +271,350 @@ class QuestsScreen extends StatelessWidget {
               const Text(
                 'Daily Progress',
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
               ),
-              Text(
-                '$completed/$total',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$completed/$total',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          // Animated progress segments
           Row(
             children: List.generate(
               total > 0 ? total : 1,
               (i) => Expanded(
-                child: Container(
-                  height: 8,
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 300 + (i * 100)),
+                  height: 10,
                   margin: EdgeInsets.only(right: i < total - 1 ? 8 : 0),
                   decoration: BoxDecoration(
-                    color: i < completed
-                        ? null
-                        : Colors.grey[300],
                     gradient: i < completed
                         ? const LinearGradient(
-                            colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                            colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
                           )
                         : null,
-                    borderRadius: BorderRadius.circular(4),
+                    color: i < completed ? null : Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(5),
+                    boxShadow: i < completed
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF8B5CF6).withOpacity(0.5),
+                              blurRadius: 8,
+                            ),
+                          ]
+                        : null,
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            completed == total
-                ? '🎉 All daily quests complete!'
-                : '$remaining quest${remaining != 1 ? 's' : ''} remaining',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    completed == total
+                        ? Icons.check_circle
+                        : Icons.access_time,
+                    size: 16,
+                    color: completed == total
+                        ? const Color(0xFF22C55E)
+                        : Colors.grey[500],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    completed == total
+                        ? '🎉 All quests complete!'
+                        : '$remaining quest${remaining != 1 ? 's' : ''} remaining',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: completed == total
+                          ? const Color(0xFF22C55E)
+                          : Colors.grey[500],
+                    ),
+                  ),
+                ],
+              ),
+              if (gameState.isComboActive)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFF59E0B).withOpacity(0.5),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text('⚡', style: TextStyle(fontSize: 12)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Combo x${gameState.combo}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFF59E0B),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                    .animate(onPlay: (c) => c.repeat(reverse: true))
+                    .scaleXY(end: 1.05, duration: 800.ms),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQuestCard(BuildContext context, Quest quest, GameProvider provider) {
+  Widget _buildQuestCard(
+    BuildContext context,
+    Quest quest,
+    GameProvider provider, {
+    int delay = 0,
+  }) {
     final isCompleted = quest.status == QuestStatus.completed;
+    final isCompleting = _completingQuests[quest.id] == true;
 
-    Color borderColor;
-    Color bgColor;
+    Color primaryColor;
+    String emoji;
+    switch (quest.type) {
+      case QuestType.focus:
+        primaryColor = const Color(0xFF3B82F6);
+        emoji = '🎯';
+        break;
+      case QuestType.health:
+        primaryColor = const Color(0xFF22C55E);
+        emoji = '💪';
+        break;
+      case QuestType.discipline:
+        primaryColor = const Color(0xFFEF4444);
+        emoji = '🔥';
+        break;
+      case QuestType.side:
+        primaryColor = const Color(0xFF8B5CF6);
+        emoji = '🌟';
+        break;
+    }
+
     if (isCompleted) {
-      borderColor = Colors.purple;
-      bgColor = Colors.purple.withOpacity(0.05);
-    } else {
-      switch (quest.type) {
-        case QuestType.focus:
-          borderColor = const Color(0xFF3B82F6);
-          bgColor = const Color(0xFF3B82F6).withOpacity(0.1);
-          break;
-        case QuestType.health:
-          borderColor = const Color(0xFF22C55E);
-          bgColor = const Color(0xFF22C55E).withOpacity(0.1);
-          break;
-        case QuestType.discipline:
-          borderColor = const Color(0xFFEF4444);
-          bgColor = const Color(0xFFEF4444).withOpacity(0.1);
-          break;
-        case QuestType.side:
-          borderColor = const Color(0xFF8B5CF6);
-          bgColor = const Color(0xFF8B5CF6).withOpacity(0.1);
-          break;
-      }
+      primaryColor = const Color(0xFF22C55E);
     }
 
     return GestureDetector(
-      onTap: () {
-        if (!isCompleted) {
+      onTap: () async {
+        if (!isCompleted && !isCompleting) {
+          setState(() => _completingQuests[quest.id] = true);
+          HapticFeedback.mediumImpact();
+
+          await Future.delayed(const Duration(milliseconds: 300));
           provider.completeQuest(quest.id);
+
+          setState(() => _completingQuests[quest.id] = false);
         }
       },
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor, width: 2),
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              const Color(0xFF1a1a2e),
+              primaryColor.withOpacity(0.15),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isCompleting
+                ? const Color(0xFFF59E0B)
+                : primaryColor.withOpacity(isCompleted ? 0.8 : 0.4),
+            width: isCompleting ? 2 : 1,
+          ),
+          boxShadow: isCompleting
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFF59E0B).withOpacity(0.3),
+                    blurRadius: 15,
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
+            // Icon container
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: isCompleted ? Colors.purple : Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                gradient: isCompleted
+                    ? const LinearGradient(
+                        colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                      )
+                    : null,
+                color: isCompleted ? null : primaryColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: isCompleted
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF22C55E).withOpacity(0.4),
+                          blurRadius: 12,
+                        ),
+                      ]
+                    : null,
               ),
-              child: Icon(
-                _getQuestIcon(quest.type),
-                size: 22,
-                color: isCompleted ? Colors.white : Colors.grey[800],
+              child: Center(
+                child: isCompleted
+                    ? const Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: 28,
+                      )
+                    : Text(
+                        emoji,
+                        style: const TextStyle(fontSize: 24),
+                      ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
+            // Quest details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          quest.title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            decoration: isCompleted ? TextDecoration.lineThrough : null,
-                            color: isCompleted ? Colors.grey[500] : Colors.black87,
-                          ),
-                        ),
-                      ),
-                      if (isCompleted)
-                        const Icon(Icons.check_circle, size: 20, color: Colors.purple),
-                    ],
+                  Text(
+                    quest.title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isCompleted ? Colors.grey[500] : Colors.white,
+                      decoration:
+                          isCompleted ? TextDecoration.lineThrough : null,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     quest.description,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey[600],
+                      color: Colors.grey[500],
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: quest.type == QuestType.side
-                          ? const Color(0xFF8B5CF6).withOpacity(0.2)
-                          : Colors.purple.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '+${quest.xpReward} XP',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: quest.type == QuestType.side
-                            ? const Color(0xFF8B5CF6)
-                            : Colors.purple,
+                  Row(
+                    children: [
+                      _buildRewardChip(
+                        '⭐ +${quest.xpReward} XP',
+                        primaryColor,
+                        isCompleted,
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      _buildTypeChip(quest.type, isCompleted),
+                    ],
                   ),
                 ],
               ),
             ),
+            // Complete button or checkmark
+            if (!isCompleted)
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: primaryColor.withOpacity(0.5),
+                  ),
+                ),
+                child: Icon(
+                  Icons.play_arrow_rounded,
+                  color: primaryColor,
+                  size: 24,
+                ),
+              ),
           ],
+        ),
+      ),
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn().slideX(begin: 0.1, end: 0);
+  }
+
+  Widget _buildRewardChip(String text, Color color, bool isCompleted) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: isCompleted
+            ? Colors.grey.withOpacity(0.2)
+            : color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: isCompleted ? Colors.grey[500] : color,
         ),
       ),
     );
   }
 
-  IconData _getQuestIcon(QuestType type) {
+  Widget _buildTypeChip(QuestType type, bool isCompleted) {
+    String label;
     switch (type) {
       case QuestType.focus:
-        return Icons.my_location;
+        label = 'Focus';
+        break;
       case QuestType.health:
-        return Icons.fitness_center;
+        label = 'Health';
+        break;
       case QuestType.discipline:
-        return Icons.local_fire_department;
+        label = 'Discipline';
+        break;
       case QuestType.side:
-        return Icons.palette;
+        label = 'Side Quest';
+        break;
     }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          color: isCompleted ? Colors.grey[600] : Colors.grey[400],
+        ),
+      ),
+    );
   }
 }

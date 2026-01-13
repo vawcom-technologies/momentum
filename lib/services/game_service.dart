@@ -2,9 +2,12 @@ import '../models/game_state.dart';
 import '../models/user_stats.dart';
 import '../models/quest.dart';
 import '../models/achievement.dart';
+import '../models/power_up.dart';
+import '../models/boss_battle.dart';
 
 class GameService {
   static const int baseXpPerLevel = 100;
+  static const int comboTimeoutMinutes = 30;
   
   // Generate default daily quests
   List<Quest> generateDailyQuests() {
@@ -98,6 +101,48 @@ class GameService {
         icon: '👑',
         xpReward: 500,
       ),
+      Achievement(
+        id: 'combo_master',
+        title: 'Combo Master',
+        description: 'Achieve a 10x combo',
+        icon: '⚡',
+        xpReward: 100,
+      ),
+      Achievement(
+        id: 'streak_week',
+        title: 'Week Warrior',
+        description: 'Maintain a 7-day streak',
+        icon: '🔥',
+        xpReward: 75,
+      ),
+      Achievement(
+        id: 'streak_month',
+        title: 'Monthly Legend',
+        description: 'Maintain a 30-day streak',
+        icon: '🌟',
+        xpReward: 300,
+      ),
+      Achievement(
+        id: 'boss_slayer',
+        title: 'Boss Slayer',
+        description: 'Defeat your first boss',
+        icon: '🗡️',
+        xpReward: 150,
+      ),
+      Achievement(
+        id: 'lucky_spin',
+        title: 'Lucky Spin',
+        description: 'Win the jackpot on the daily spin',
+        icon: '🎰',
+        xpReward: 50,
+      ),
+      Achievement(
+        id: 'power_collector',
+        title: 'Power Collector',
+        description: 'Collect all power-up types',
+        icon: '💫',
+        xpReward: 100,
+      ),
     ];
   }
 
@@ -108,7 +153,9 @@ class GameService {
 
   // Add XP and handle leveling
   GameState addXp(GameState state, int xp) {
-    int newXp = state.xp + xp;
+    // Apply multiplier
+    int effectiveXp = (xp * state.effectiveXpMultiplier).round();
+    int newXp = state.xp + effectiveXp;
     int newLevel = state.level;
 
     // Level up if XP threshold is met
@@ -116,8 +163,17 @@ class GameService {
       newXp -= xpForLevel(newLevel + 1);
       newLevel++;
     }
+    
+    // Track daily XP
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final newDailyXpHistory = Map<String, int>.from(state.dailyXpHistory);
+    newDailyXpHistory[today] = (newDailyXpHistory[today] ?? 0) + effectiveXp;
 
-    return state.copyWith(xp: newXp, level: newLevel);
+    return state.copyWith(
+      xp: newXp, 
+      level: newLevel,
+      dailyXpHistory: newDailyXpHistory,
+    );
   }
 
   // Update stats based on actions
@@ -140,6 +196,13 @@ class GameService {
 
   // Apply daily stat decay (NPC behavior)
   GameState applyStatDecay(GameState state) {
+    // Check if shield power-up is active
+    for (var powerUp in state.activePowerUps) {
+      if (!powerUp.isExpired && powerUp.type == PowerUpType.shieldDecay) {
+        return state; // No decay with shield
+      }
+    }
+    
     const double decayRate = 2.0; // Decay 2 points per day if inactive
     UserStats newStats = state.stats.copyWith(
       discipline: (state.stats.discipline - decayRate).clamp(0.0, 100.0),
@@ -151,7 +214,7 @@ class GameService {
     return state.copyWith(stats: newStats);
   }
 
-  // Complete a quest
+  // Complete a quest with combo system
   GameState completeQuest(GameState state, String questId) {
     // Find the quest
     final questIndex = state.dailyQuests.indexWhere(
@@ -163,35 +226,191 @@ class GameService {
     }
 
     final quest = state.dailyQuests[questIndex];
+    final now = DateTime.now();
+
+    // Update combo
+    int newCombo = state.combo;
+    if (state.isComboActive) {
+      newCombo++;
+    } else {
+      newCombo = 1;
+    }
+    int newMaxCombo = newCombo > state.maxCombo ? newCombo : state.maxCombo;
 
     // Update stats based on quest type
-    GameState newState = state;
+    GameState newState = state.copyWith(
+      combo: newCombo,
+      maxCombo: newMaxCombo,
+      lastQuestCompletedAt: now,
+      totalQuestsCompleted: state.totalQuestsCompleted + 1,
+    );
+    
     switch (quest.type) {
       case QuestType.focus:
-        newState = updateStats(state, focusDelta: 5.0);
+        newState = updateStats(newState, focusDelta: 5.0);
         break;
       case QuestType.health:
-        newState = updateStats(state, healthDelta: 5.0);
+        newState = updateStats(newState, healthDelta: 5.0);
         break;
       case QuestType.discipline:
-        newState = updateStats(state, disciplineDelta: 5.0);
+        newState = updateStats(newState, disciplineDelta: 5.0);
         break;
       case QuestType.side:
-        newState = updateStats(state, disciplineDelta: 2.0);
+        newState = updateStats(newState, disciplineDelta: 2.0);
         break;
     }
 
-    // Add XP
+    // Add XP (with combo multiplier applied through effectiveXpMultiplier)
     newState = addXp(newState, quest.xpReward);
 
     // Update quest status
     final quests = List<Quest>.from(state.dailyQuests);
     quests[questIndex] = quest.copyWith(
       status: QuestStatus.completed,
-      completedAt: DateTime.now(),
+      completedAt: now,
     );
+    
+    // Update boss battle progress
+    BossBattle? updatedBoss = newState.currentBoss;
+    if (updatedBoss != null && updatedBoss.status == BossStatus.inProgress) {
+      updatedBoss = updatedBoss.copyWith(
+        completedQuests: updatedBoss.completedQuests + 1,
+      );
+    }
+    
+    // Check for loot box reward (every 10 quests)
+    int lootBoxes = newState.lootBoxesEarned;
+    if (newState.totalQuestsCompleted % 10 == 0) {
+      lootBoxes++;
+    }
 
-    return newState.copyWith(dailyQuests: quests);
+    return newState.copyWith(
+      dailyQuests: quests,
+      currentBoss: updatedBoss,
+      lootBoxesEarned: lootBoxes,
+    );
+  }
+
+  // Update streak
+  GameState updateStreak(GameState state, bool completedAllQuests) {
+    if (!completedAllQuests) {
+      return state.copyWith(currentStreak: 0);
+    }
+    
+    final newStreak = state.currentStreak + 1;
+    final newLongestStreak = newStreak > state.longestStreak 
+        ? newStreak 
+        : state.longestStreak;
+    
+    return state.copyWith(
+      currentStreak: newStreak,
+      longestStreak: newLongestStreak,
+    );
+  }
+
+  // Activate a power-up
+  GameState activatePowerUp(GameState state, String powerUpId) {
+    final powerUpIndex = state.powerUps.indexWhere((p) => p.id == powerUpId);
+    if (powerUpIndex == -1) return state;
+    
+    final powerUp = state.powerUps[powerUpIndex];
+    final activatedPowerUp = powerUp.copyWith(
+      isActive: true,
+      activatedAt: DateTime.now(),
+    );
+    
+    final newPowerUps = List<PowerUp>.from(state.powerUps);
+    newPowerUps.removeAt(powerUpIndex);
+    
+    final newActivePowerUps = List<PowerUp>.from(state.activePowerUps);
+    newActivePowerUps.add(activatedPowerUp);
+    
+    return state.copyWith(
+      powerUps: newPowerUps,
+      activePowerUps: newActivePowerUps,
+    );
+  }
+
+  // Add a power-up to inventory
+  GameState addPowerUp(GameState state, PowerUp powerUp) {
+    final newPowerUps = List<PowerUp>.from(state.powerUps);
+    newPowerUps.add(powerUp);
+    return state.copyWith(powerUps: newPowerUps);
+  }
+
+  // Clean up expired power-ups
+  GameState cleanExpiredPowerUps(GameState state) {
+    final activeNotExpired = state.activePowerUps
+        .where((p) => !p.isExpired)
+        .toList();
+    
+    return state.copyWith(activePowerUps: activeNotExpired);
+  }
+
+  // Start a boss battle
+  GameState startBossBattle(GameState state, BossBattle boss) {
+    final startedBoss = boss.copyWith(
+      status: BossStatus.inProgress,
+      startedAt: DateTime.now(),
+    );
+    return state.copyWith(currentBoss: startedBoss);
+  }
+
+  // Complete boss battle
+  GameState completeBossBattle(GameState state) {
+    if (state.currentBoss == null) return state;
+    if (!state.currentBoss!.isCompleted) return state;
+    
+    final defeatedBoss = state.currentBoss!.copyWith(
+      status: BossStatus.defeated,
+    );
+    
+    final newDefeatedBosses = List<BossBattle>.from(state.defeatedBosses);
+    newDefeatedBosses.add(defeatedBoss);
+    
+    // Award rewards
+    GameState newState = addXp(state, defeatedBoss.xpReward);
+    newState = updateStats(
+      newState,
+      disciplineDelta: defeatedBoss.bonusStatPoints.toDouble(),
+      focusDelta: defeatedBoss.bonusStatPoints.toDouble(),
+      healthDelta: defeatedBoss.bonusStatPoints.toDouble(),
+    );
+    
+    return newState.copyWith(
+      currentBoss: null,
+      defeatedBosses: newDefeatedBosses,
+    );
+  }
+
+  // Process daily spin
+  GameState processSpin(GameState state, int xpReward, {
+    bool isMultiplier = false,
+    int multiplier = 1,
+    bool isPowerUp = false,
+  }) {
+    GameState newState = state.copyWith(lastSpinDate: DateTime.now());
+    
+    if (xpReward > 0) {
+      newState = addXp(newState, xpReward);
+    }
+    
+    if (isMultiplier) {
+      newState = newState.copyWith(
+        xpMultiplier: state.xpMultiplier * multiplier,
+      );
+    }
+    
+    if (isPowerUp) {
+      // Add a random power-up
+      final powerUps = PowerUp.defaultPowerUps();
+      final randomPowerUp = powerUps[DateTime.now().millisecond % powerUps.length];
+      newState = addPowerUp(newState, randomPowerUp.copyWith(
+        id: '${randomPowerUp.id}_${DateTime.now().millisecondsSinceEpoch}',
+      ));
+    }
+    
+    return newState;
   }
 
   // Check and unlock achievements
@@ -216,7 +435,18 @@ class GameService {
         case 'villain_arc':
           shouldUnlock = state.level >= 25;
           break;
-        // Add more achievement logic here
+        case 'combo_master':
+          shouldUnlock = state.maxCombo >= 10;
+          break;
+        case 'streak_week':
+          shouldUnlock = state.longestStreak >= 7;
+          break;
+        case 'streak_month':
+          shouldUnlock = state.longestStreak >= 30;
+          break;
+        case 'boss_slayer':
+          shouldUnlock = state.defeatedBosses.isNotEmpty;
+          break;
       }
 
       if (shouldUnlock) {
@@ -277,10 +507,22 @@ class GameService {
         money: 50.0,
       ),
       xp: 0,
-      level: 0,
+      level: 1,
       dailyQuests: generateDailyQuests(),
       achievements: generateAchievements(),
       lastUpdated: DateTime.now(),
+      currentStreak: 0,
+      longestStreak: 0,
+      combo: 0,
+      maxCombo: 0,
+      powerUps: [],
+      activePowerUps: [],
+      currentBoss: BossBattle.weeklyBoss(),
+      defeatedBosses: [],
+      totalQuestsCompleted: 0,
+      lootBoxesEarned: 0,
+      avatarId: 'default',
+      dailyXpHistory: {},
     );
   }
 }
