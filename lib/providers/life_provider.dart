@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -5,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/life_data.dart';
 import '../models/habit.dart';
 import '../models/journal_entry.dart';
-import '../models/focus_session.dart';
+import '../models/music_session.dart';
+import '../services/music_service.dart';
 
 class LifeProvider with ChangeNotifier {
   LifeData _lifeData = LifeData();
@@ -41,6 +43,10 @@ class LifeProvider with ChangeNotifier {
       );
       await _save();
     }
+
+    // Initialize music service and setup automatic tracking
+    _musicService.initialize();
+    _setupAutoMusicTracking();
 
     _isLoading = false;
     notifyListeners();
@@ -263,4 +269,76 @@ class LifeProvider with ChangeNotifier {
     await _save();
     notifyListeners();
   }
+
+  // ============ MUSIC TRACKING ============
+
+  final MusicService _musicService = MusicService();
+  MusicSession? _lastAutoSession;
+  Timer? _autoTrackingTimer;
+
+  void _setupAutoMusicTracking() {
+    _autoTrackingTimer?.cancel();
+    // Check for completed sessions periodically (when audio stops)
+    _autoTrackingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      final currentSession = _musicService.currentSession;
+      
+      // If session ended but not saved yet
+      if (_lastAutoSession != null && 
+          _lastAutoSession!.endedAt != null &&
+          currentSession == null) {
+        // Session was completed, save it
+        addMusicSession(_lastAutoSession!);
+        _lastAutoSession = null;
+      }
+      
+      // Track current session
+      if (currentSession != null && currentSession != _lastAutoSession) {
+        _lastAutoSession = currentSession;
+      }
+    });
+  }
+
+
+  Future<void> addMusicSession(MusicSession session) async {
+    final sessions = List<MusicSession>.from(_lifeData.musicSessions)..add(session);
+    final totalMinutes = MusicService.getTotalMusicMinutes(sessions);
+    
+    _lifeData = _lifeData.copyWith(
+      musicSessions: sessions,
+      totalMusicMinutes: totalMinutes,
+    );
+    await _save();
+    notifyListeners();
+  }
+
+  int getTodayMusicMinutes() {
+    final today = DateTime.now();
+    return MusicService.getDailyMusicMinutes(_lifeData.musicSessions, today);
+  }
+
+  int getWeeklyMusicMinutes() {
+    return MusicService.getWeeklyMusicMinutes(_lifeData.musicSessions);
+  }
+
+  int getTotalMusicMinutes() {
+    return _lifeData.totalMusicMinutes;
+  }
+
+  List<MusicSession> getMusicSessionsByDateRange(DateTime startDate, DateTime endDate) {
+    return MusicService.getSessionsByDateRange(
+      _lifeData.musicSessions,
+      startDate,
+      endDate,
+    );
+  }
+
+  List<double> getDailyMusicDataForLastDays(int days) {
+    return MusicService.getDailyMusicDataForLastDays(_lifeData.musicSessions, days);
+  }
+
+  MusicSession? getCurrentMusicSession() {
+    return _musicService.currentSession;
+  }
+
+  bool get isMusicTracking => _musicService.isTracking;
 }

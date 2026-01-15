@@ -1,6 +1,7 @@
 import 'habit.dart';
 import 'journal_entry.dart';
 import 'focus_session.dart';
+import 'music_session.dart';
 
 class SleepEntry {
   final String id;
@@ -317,6 +318,8 @@ class LifeData {
   final List<QuickNote> notes;
   final int totalFocusMinutes;
   final int totalMeditationMinutes;
+  final List<MusicSession> musicSessions;
+  final int totalMusicMinutes;
 
   LifeData({
     this.habits = const [],
@@ -328,6 +331,8 @@ class LifeData {
     this.notes = const [],
     this.totalFocusMinutes = 0,
     this.totalMeditationMinutes = 0,
+    this.musicSessions = const [],
+    this.totalMusicMinutes = 0,
   });
 
   LifeData copyWith({
@@ -340,6 +345,8 @@ class LifeData {
     List<QuickNote>? notes,
     int? totalFocusMinutes,
     int? totalMeditationMinutes,
+    List<MusicSession>? musicSessions,
+    int? totalMusicMinutes,
   }) {
     return LifeData(
       habits: habits ?? this.habits,
@@ -351,6 +358,8 @@ class LifeData {
       notes: notes ?? this.notes,
       totalFocusMinutes: totalFocusMinutes ?? this.totalFocusMinutes,
       totalMeditationMinutes: totalMeditationMinutes ?? this.totalMeditationMinutes,
+      musicSessions: musicSessions ?? this.musicSessions,
+      totalMusicMinutes: totalMusicMinutes ?? this.totalMusicMinutes,
     );
   }
 
@@ -365,6 +374,8 @@ class LifeData {
       'notes': notes.map((n) => n.toJson()).toList(),
       'totalFocusMinutes': totalFocusMinutes,
       'totalMeditationMinutes': totalMeditationMinutes,
+      'musicSessions': musicSessions.map((m) => m.toJson()).toList(),
+      'totalMusicMinutes': totalMusicMinutes,
     };
   }
 
@@ -379,6 +390,8 @@ class LifeData {
       notes: (json['notes'] as List?)?.map((n) => QuickNote.fromJson(n)).toList() ?? [],
       totalFocusMinutes: json['totalFocusMinutes'] ?? 0,
       totalMeditationMinutes: json['totalMeditationMinutes'] ?? 0,
+      musicSessions: (json['musicSessions'] as List?)?.map((m) => MusicSession.fromJson(m)).toList() ?? [],
+      totalMusicMinutes: json['totalMusicMinutes'] ?? 0,
     );
   }
 }

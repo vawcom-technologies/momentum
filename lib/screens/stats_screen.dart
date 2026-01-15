@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/game_provider.dart';
+import '../providers/life_provider.dart';
 
 class StatsScreen extends StatelessWidget {
   const StatsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<GameProvider>(
-      builder: (context, provider, child) {
-        final gameState = provider.gameState;
+    return Consumer2<GameProvider, LifeProvider>(
+      builder: (context, gameProvider, lifeProvider, child) {
+        final gameState = gameProvider.gameState;
         if (gameState == null) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -44,7 +45,7 @@ class StatsScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Today's Overview Grid
-                _buildOverviewGrid(screenTimeHours, steps),
+                _buildOverviewGrid(screenTimeHours, steps, lifeProvider),
                 const SizedBox(height: 24),
 
                 // Gym Sessions Card
@@ -52,7 +53,7 @@ class StatsScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Creative Activities Card
-                _buildCreativeActivitiesCard(),
+                _buildCreativeActivitiesCard(lifeProvider),
                 const SizedBox(height: 24),
 
                 // Screen Time Card
@@ -79,7 +80,12 @@ class StatsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOverviewGrid(double screenTime, int steps) {
+  Widget _buildOverviewGrid(double screenTime, int steps, LifeProvider lifeProvider) {
+    final todayMusicMinutes = lifeProvider.getTodayMusicMinutes();
+    final weeklyMusicMinutes = lifeProvider.getWeeklyMusicMinutes();
+    final todayMusicHours = todayMusicMinutes / 60.0;
+    final weeklyMusicHours = weeklyMusicMinutes / 60.0;
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -119,8 +125,12 @@ class StatsScreen extends StatelessWidget {
           icon: Icons.music_note,
           iconColor: const Color(0xFF8B5CF6),
           label: 'Music Today',
-          value: '2.8h',
-          subtitle: '18.5h this week',
+          value: todayMusicHours >= 1.0 
+              ? '${todayMusicHours.toStringAsFixed(1)}h'
+              : '${todayMusicMinutes}m',
+          subtitle: weeklyMusicHours >= 1.0
+              ? '${weeklyMusicHours.toStringAsFixed(1)}h this week'
+              : '${weeklyMusicMinutes}m this week',
           subtitleColor: const Color(0xFF8B5CF6),
           isPositive: true,
         ),
@@ -352,8 +362,10 @@ class StatsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCreativeActivitiesCard() {
-    final creativeData = [2.5, 1.8, 3.2, 2.0, 1.5, 4.0, 3.5];
+  Widget _buildCreativeActivitiesCard(LifeProvider lifeProvider) {
+    final musicData = lifeProvider.getDailyMusicDataForLastDays(7);
+    final maxMusicValue = musicData.isEmpty ? 5.0 : (musicData.reduce((a, b) => a > b ? a : b) * 1.2).clamp(1.0, 10.0);
+    final weeklyMusicHours = lifeProvider.getWeeklyMusicMinutes() / 60.0;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -432,12 +444,12 @@ class StatsScreen extends StatelessWidget {
                 minX: 0,
                 maxX: 6,
                 minY: 0,
-                maxY: 5,
+                maxY: maxMusicValue,
                 lineBarsData: [
                   LineChartBarData(
                     spots: List.generate(
                       7,
-                      (i) => FlSpot(i.toDouble(), creativeData[i]),
+                      (i) => FlSpot(i.toDouble(), musicData.length > i ? musicData[i] : 0.0),
                     ),
                     isCurved: true,
                     color: const Color(0xFFA855F7),
@@ -517,12 +529,14 @@ class StatsScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        '18.5h',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      Text(
+                        weeklyMusicHours >= 1.0
+                            ? '${weeklyMusicHours.toStringAsFixed(1)}h'
+                            : '${lifeProvider.getWeeklyMusicMinutes()}m',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'Vibing well!',
+                        weeklyMusicHours > 0 ? 'Vibing well!' : 'Start listening!',
                         style: TextStyle(fontSize: 11, color: Colors.purple[600]),
                       ),
                     ],

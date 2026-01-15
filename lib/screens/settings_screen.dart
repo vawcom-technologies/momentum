@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/game_state.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -71,6 +72,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // Appearance Section
                 _buildAppearanceCard(),
+                const SizedBox(height: 16),
+
+                // Account Section
+                _buildAccountCard(),
                 const SizedBox(height: 16),
 
                 // About Section
@@ -246,7 +251,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: Colors.purple[700],
+          activeThumbColor: Colors.purple[700],
         ),
       ],
     );
@@ -448,6 +453,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Use dark theme',
             value: _darkMode,
             onChanged: (value) => setState(() => _darkMode = value),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.account_circle_outlined, size: 20, color: Colors.grey[800]),
+              const SizedBox(width: 8),
+              const Text(
+                'Account',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Consumer<AuthProvider>(
+            builder: (context, authProvider, child) {
+              return SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Sign Out'),
+                        content: const Text('Are you sure you want to sign out?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            child: const Text('Sign Out'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true && mounted) {
+                      await authProvider.signOut();
+                    }
+                  },
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Sign Out'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/game_provider.dart';
 import '../models/game_state.dart';
-import '../models/quest.dart';
 import '../widgets/level_up_overlay.dart';
 import '../widgets/combo_animation.dart';
 import 'quests_screen.dart';
