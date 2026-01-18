@@ -35,60 +35,39 @@ class _QuestsScreenState extends State<QuestsScreen> {
             .length;
         final totalDaily = dailyQuests.length;
 
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Daily Quests',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                         ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                            blurRadius: 12,
-                          ),
-                        ],
                       ),
-                      child: const Text(
-                        '⚔️',
-                        style: TextStyle(fontSize: 28),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Complete tasks to earn XP',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Daily Quests',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          'Complete tasks to earn XP',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[400],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                )
-                    .animate()
-                    .fadeIn(duration: 500.ms)
-                    .slideX(begin: -0.1, end: 0),
+                    ],
+                  )
+                      .animate()
+                      .fadeIn(duration: 500.ms)
+                      .slideY(begin: -0.2, end: 0),
                 const SizedBox(height: 24),
 
                 // Multiplier banner
@@ -138,8 +117,9 @@ class _QuestsScreenState extends State<QuestsScreen> {
                         ),
                       )),
                 ],
-                const SizedBox(height: 100), // Bottom padding for nav bar
-              ],
+                  const SizedBox(height: 100), // Bottom padding for nav bar
+                ],
+              ),
             ),
           ),
         );
@@ -151,16 +131,18 @@ class _QuestsScreenState extends State<QuestsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFF59E0B).withOpacity(0.2),
-            const Color(0xFFEF4444).withOpacity(0.2),
-          ],
-        ),
+                color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFF59E0B).withOpacity(0.5),
+          color: const Color(0xFFF59E0B).withOpacity(0.3),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -183,7 +165,7 @@ class _QuestsScreenState extends State<QuestsScreen> {
                   'All XP rewards are multiplied by ${multiplier.toStringAsFixed(1)}x',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[400],
+                    color: Colors.grey[600],
                   ),
                 ),
               ],
@@ -199,10 +181,10 @@ class _QuestsScreenState extends State<QuestsScreen> {
             ),
             child: Text(
               '${multiplier.toStringAsFixed(1)}x',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
               ),
             ),
           ),
@@ -220,24 +202,25 @@ class _QuestsScreenState extends State<QuestsScreen> {
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         const Spacer(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.grey[100],
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
           ),
           child: Text(
             '$count quests',
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey[400],
+              color: Colors.grey[600],
             ),
           ),
         ),
@@ -251,16 +234,16 @@ class _QuestsScreenState extends State<QuestsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF1a1a2e),
-            const Color(0xFF8B5CF6).withOpacity(0.2),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.3)),
+                color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,12 +251,12 @@ class _QuestsScreenState extends State<QuestsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Daily Progress',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
               Container(
@@ -286,10 +269,10 @@ class _QuestsScreenState extends State<QuestsScreen> {
                 ),
                 child: Text(
                   '$completed/$total',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
               ),
@@ -311,7 +294,7 @@ class _QuestsScreenState extends State<QuestsScreen> {
                             colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
                           )
                         : null,
-                    color: i < completed ? null : Colors.white.withOpacity(0.1),
+                    color: i < completed ? null : Colors.grey[200],
                     borderRadius: BorderRadius.circular(5),
                     boxShadow: i < completed
                         ? [
@@ -439,29 +422,28 @@ class _QuestsScreenState extends State<QuestsScreen> {
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [
-              const Color(0xFF1a1a2e),
-              primaryColor.withOpacity(0.15),
-            ],
-          ),
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isCompleting
                 ? const Color(0xFFF59E0B)
-                : primaryColor.withOpacity(isCompleted ? 0.8 : 0.4),
+                : isCompleted
+                    ? const Color(0xFF22C55E).withOpacity(0.5)
+                    : Colors.grey[200]!,
             width: isCompleting ? 2 : 1,
           ),
-          boxShadow: isCompleting
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFF59E0B).withOpacity(0.3),
-                    blurRadius: 15,
-                  ),
-                ]
-              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+            if (isCompleting)
+              BoxShadow(
+                color: const Color(0xFFF59E0B).withOpacity(0.3),
+                blurRadius: 15,
+              ),
+          ],
         ),
         child: Row(
           children: [
@@ -489,9 +471,9 @@ class _QuestsScreenState extends State<QuestsScreen> {
               ),
               child: Center(
                 child: isCompleted
-                    ? const Icon(
+                    ? Icon(
                         Icons.check,
-                        color: Colors.white,
+                        color: Theme.of(context).iconTheme.color,
                         size: 28,
                       )
                     : Text(
@@ -511,7 +493,7 @@ class _QuestsScreenState extends State<QuestsScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: isCompleted ? Colors.grey[500] : Colors.white,
+                      color: isCompleted ? Colors.grey[500] : Theme.of(context).textTheme.bodyLarge?.color,
                       decoration:
                           isCompleted ? TextDecoration.lineThrough : null,
                     ),
@@ -521,7 +503,7 @@ class _QuestsScreenState extends State<QuestsScreen> {
                     quest.description,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey[500],
+                      color: Colors.grey[600],
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 import '../models/game_state.dart';
+import '../services/notification_service.dart';
+import '../services/activity_monitor_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,13 +15,50 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _questReminders = true;
-  bool _sittingAlerts = true;
-  bool _screenTimeWarnings = true;
-  bool _darkMode = true;
+  // Notification settings
+  bool _waterReminders = true;
+  int _waterInterval = 90; // minutes
+  bool _gymReminders = false;
+  TimeOfDay _gymTime = const TimeOfDay(hour: 17, minute: 0);
+  bool _inactivityAlerts = true;
+  int _inactivityThreshold = 30; // minutes
+  int _quietHoursStart = 22;
+  int _quietHoursEnd = 8;
+  
+  // Legacy settings
   String _notificationStyle = 'Motivational';
   double _stepGoal = 10000;
   double _screenTimeLimit = 6;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationSettings();
+  }
+
+  Future<void> _loadNotificationSettings() async {
+    final settings = await NotificationService().getSettings();
+    final activityMonitor = ActivityMonitorService();
+    
+    setState(() {
+      _waterReminders = settings['waterReminderEnabled'] ?? true;
+      _waterInterval = settings['waterReminderInterval'] ?? 90;
+      _gymReminders = settings['gymReminderEnabled'] ?? false;
+      _inactivityAlerts = settings['inactivityReminderEnabled'] ?? true;
+      _quietHoursStart = settings['quietHoursStart'] ?? 22;
+      _quietHoursEnd = settings['quietHoursEnd'] ?? 8;
+      _inactivityThreshold = activityMonitor.getStatus()['thresholdMinutes'] ?? 30;
+      
+      final gymTimeStr = settings['gymReminderTime'] as String?;
+      if (gymTimeStr != null) {
+        final parts = gymTimeStr.split(':');
+        _gymTime = TimeOfDay(
+          hour: int.parse(parts[0]),
+          minute: int.parse(parts[1]),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,29 +69,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                const Text(
-                  'Settings',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Text(
+                    'Settings',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Customize your experience',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
+                  const SizedBox(height: 4),
+                  Text(
+                    'Customize your experience',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                ),
                 const SizedBox(height: 24),
 
                 // Profile Section
@@ -81,8 +123,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // About Section
                 _buildAboutCard(),
 
-                const SizedBox(height: 80), // Bottom padding
-              ],
+                  const SizedBox(height: 80), // Bottom padding
+                ],
+              ),
             ),
           ),
         );
@@ -91,80 +134,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildProfileCard(GameState gameState) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        children: [
-          Row(
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        final user = authProvider.user;
+        final userName = user?.userMetadata?['name'] as String? ?? 
+                        user?.email?.split('@').first ?? 
+                        'Player';
+        
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+              Row(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      size: 32,
+                      color: Colors.white,
+                    ),
                   ),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.person,
-                  size: 32,
-                  color: Colors.white,
-                ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          userName,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Level ${gameState.level} • ${_getLevelTitle(gameState.level)}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Player',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Level ${gameState.level} • ${_getLevelTitle(gameState.level)}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
+                  ),
+                  child: const Text(
+                    'Edit Profile',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Edit Profile',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -172,7 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -183,38 +236,315 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Icon(Icons.notifications_outlined, size: 20, color: Colors.grey[800]),
               const SizedBox(width: 8),
-              const Text(
-                'Notifications',
+              Text(
+                'Smart Reminders',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
+          
+          // Water Reminders
           _buildSwitchTile(
-            title: 'Quest Reminders',
-            subtitle: 'Get notified about incomplete quests',
-            value: _questReminders,
-            onChanged: (value) => setState(() => _questReminders = value),
+            title: '💧 Water Reminders',
+            subtitle: 'Every $_waterInterval min during waking hours',
+            value: _waterReminders,
+            onChanged: (value) async {
+              setState(() => _waterReminders = value);
+              if (value) {
+                await NotificationService().scheduleWaterReminders(
+                  intervalMinutes: _waterInterval,
+                );
+              } else {
+                await NotificationService().cancelWaterReminders();
+              }
+            },
           ),
+          if (_waterReminders) ...[
+            const SizedBox(height: 12),
+            _buildIntervalSelector(
+              label: 'Reminder interval',
+              value: _waterInterval,
+              options: [60, 90, 120],
+              optionLabels: ['1 hour', '1.5 hours', '2 hours'],
+              onChanged: (value) async {
+                setState(() => _waterInterval = value);
+                await NotificationService().scheduleWaterReminders(
+                  intervalMinutes: value,
+                );
+              },
+            ),
+          ],
+          
           const Divider(height: 32),
+          
+          // Gym Reminders
           _buildSwitchTile(
-            title: 'Sitting Alerts',
-            subtitle: 'Alert when sitting too long',
-            value: _sittingAlerts,
-            onChanged: (value) => setState(() => _sittingAlerts = value),
+            title: '🏋️ Gym Reminders',
+            subtitle: _gymReminders 
+                ? 'Daily at ${_gymTime.format(context)}'
+                : 'Get reminded to workout',
+            value: _gymReminders,
+            onChanged: (value) async {
+              setState(() => _gymReminders = value);
+              if (value) {
+                await NotificationService().scheduleGymReminder(
+                  hour: _gymTime.hour,
+                  minute: _gymTime.minute,
+                );
+              } else {
+                await NotificationService().cancelGymReminders();
+              }
+            },
           ),
+          if (_gymReminders) ...[
+            const SizedBox(height: 12),
+            _buildTimeSelector(
+              label: 'Workout time',
+              time: _gymTime,
+              onChanged: (time) async {
+                setState(() => _gymTime = time);
+                await NotificationService().scheduleGymReminder(
+                  hour: time.hour,
+                  minute: time.minute,
+                );
+              },
+            ),
+          ],
+          
           const Divider(height: 32),
+          
+          // Inactivity Alerts
           _buildSwitchTile(
-            title: 'Screen Time Warnings',
-            subtitle: 'Alert on excessive screen time',
-            value: _screenTimeWarnings,
-            onChanged: (value) => setState(() => _screenTimeWarnings = value),
+            title: '🛋️ Inactivity Alerts',
+            subtitle: 'Nudge when inactive for $_inactivityThreshold+ min',
+            value: _inactivityAlerts,
+            onChanged: (value) async {
+              setState(() => _inactivityAlerts = value);
+              await ActivityMonitorService().setEnabled(value);
+              await NotificationService().setInactivityRemindersEnabled(value);
+            },
           ),
+          if (_inactivityAlerts) ...[
+            const SizedBox(height: 12),
+            _buildIntervalSelector(
+              label: 'Alert after',
+              value: _inactivityThreshold,
+              options: [15, 30, 45, 60],
+              optionLabels: ['15 min', '30 min', '45 min', '1 hour'],
+              onChanged: (value) async {
+                setState(() => _inactivityThreshold = value);
+                await ActivityMonitorService().setInactivityThreshold(value);
+              },
+            ),
+          ],
+          
+          const Divider(height: 32),
+          
+          // Quiet Hours
+          _buildQuietHoursSelector(),
         ],
       ),
+    );
+  }
+
+  Widget _buildIntervalSelector({
+    required String label,
+    required int value,
+    required List<int> options,
+    required List<String> optionLabels,
+    required ValueChanged<int> onChanged,
+  }) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+        ),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButton<int>(
+            value: value,
+            underline: const SizedBox(),
+            isDense: true,
+            items: List.generate(options.length, (i) {
+              return DropdownMenuItem(
+                value: options[i],
+                child: Text(optionLabels[i]),
+              );
+            }),
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeSelector({
+    required String label,
+    required TimeOfDay time,
+    required ValueChanged<TimeOfDay> onChanged,
+  }) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+        ),
+        const Spacer(),
+        GestureDetector(
+          onTap: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: time,
+            );
+            if (picked != null) {
+              onChanged(picked);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.purple[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.purple[200]!),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.access_time, size: 16, color: Colors.purple[700]),
+                const SizedBox(width: 8),
+                Text(
+                  time.format(context),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.purple[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuietHoursSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.bedtime, size: 18, color: Colors.grey[700]),
+            const SizedBox(width: 8),
+            Text(
+              'Quiet Hours',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'No notifications during these hours',
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildHourSelector(
+                label: 'Start',
+                hour: _quietHoursStart,
+                onChanged: (h) async {
+                  setState(() => _quietHoursStart = h);
+                  await NotificationService().setQuietHours(_quietHoursStart, _quietHoursEnd);
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildHourSelector(
+                label: 'End',
+                hour: _quietHoursEnd,
+                onChanged: (h) async {
+                  setState(() => _quietHoursEnd = h);
+                  await NotificationService().setQuietHours(_quietHoursStart, _quietHoursEnd);
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHourSelector({
+    required String label,
+    required int hour,
+    required ValueChanged<int> onChanged,
+  }) {
+    String formatHour(int h) {
+      if (h == 0) return '12 AM';
+      if (h == 12) return '12 PM';
+      if (h < 12) return '$h AM';
+      return '${h - 12} PM';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButton<int>(
+            value: hour,
+            isExpanded: true,
+            underline: const SizedBox(),
+            isDense: true,
+            items: List.generate(24, (h) {
+              return DropdownMenuItem(
+                value: h,
+                child: Text(formatHour(h)),
+              );
+            }),
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -232,9 +562,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
               const SizedBox(height: 4),
@@ -261,7 +592,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -272,11 +603,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Icon(Icons.volume_up_outlined, size: 20, color: Colors.grey[800]),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Notification Style',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
             ],
@@ -311,7 +643,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.purple.withOpacity(0.1) : Colors.white,
+          color: isSelected ? Colors.purple.withOpacity(0.1) : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? Colors.purple : Colors.grey[300]!,
@@ -323,9 +655,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
               ),
             ),
             const SizedBox(height: 4),
@@ -346,7 +679,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -357,11 +690,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Icon(Icons.bolt, size: 20, color: Colors.grey[800]),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Daily Goals',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
             ],
@@ -370,9 +704,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Step Goal',
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
               Text(
                 '${_stepGoal.round().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (match) => '${match[1]},')} steps',
@@ -396,9 +733,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Screen Time Limit',
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
               Text(
                 '${_screenTimeLimit.round()} hours',
@@ -424,38 +764,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildAppearanceCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.dark_mode_outlined, size: 20, color: Colors.grey[800]),
-              const SizedBox(width: 8),
-              const Text(
+              Row(
+                children: [
+                  Icon(Icons.dark_mode_outlined, size: 20, color: Colors.grey[800]),
+                  const SizedBox(width: 8),
+              Text(
                 'Appearance',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
+              ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildSwitchTile(
+                title: 'Dark Mode',
+                subtitle: 'Use dark theme',
+                value: themeProvider.isDarkMode,
+                onChanged: (value) => themeProvider.toggleTheme(value),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          _buildSwitchTile(
-            title: 'Dark Mode',
-            subtitle: 'Use dark theme',
-            value: _darkMode,
-            onChanged: (value) => setState(() => _darkMode = value),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -463,7 +808,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -474,11 +819,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Icon(Icons.account_circle_outlined, size: 20, color: Colors.grey[800]),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Account',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
             ],
@@ -535,7 +881,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),

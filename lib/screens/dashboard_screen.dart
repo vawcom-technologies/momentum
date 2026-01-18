@@ -53,7 +53,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         return Stack(
           children: [
             Scaffold(
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               body: IndexedStack(
                 index: _currentIndex,
                 children: [
@@ -98,49 +98,55 @@ class _DashboardScreenState extends State<DashboardScreen>
         0;
 
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            // Header with streak
-            _buildHeader(gameState)
-                .animate()
-                .fadeIn(duration: 500.ms)
-                .slideY(begin: -0.2, end: 0),
-            const SizedBox(height: 24),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenPadding = constraints.maxWidth * 0.06;
+          final itemSpacing = constraints.maxHeight * 0.02;
+          
+          return SingleChildScrollView(
+            padding: EdgeInsets.all(screenPadding),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header with streak
+                _buildHeader(gameState)
+                    .animate()
+                    .fadeIn(duration: 500.ms)
+                    .slideY(begin: -0.2, end: 0),
+                SizedBox(height: itemSpacing),
 
-            // XP Progress Card
-            _buildXPCard(gameState),
-            const SizedBox(height: 20),
+                // XP Progress Card
+                _buildXPCard(gameState),
+                SizedBox(height: itemSpacing * 0.8),
 
-            // Streak & Combo Row
-            _buildStreakComboRow(gameState)
-                .animate()
-                .fadeIn(delay: 200.ms, duration: 500.ms)
-                .slideX(begin: -0.1, end: 0),
-            const SizedBox(height: 24),
+                // Streak & Combo Row
+                _buildStreakComboRow(gameState)
+                    .animate()
+                    .fadeIn(delay: 200.ms, duration: 500.ms)
+                    .slideX(begin: -0.1, end: 0),
+                SizedBox(height: itemSpacing),
 
-            // Core Stats Section
-            _buildCoreStatsHeader()
-                .animate()
-                .fadeIn(delay: 400.ms, duration: 500.ms),
-            const SizedBox(height: 16),
-            _buildStatsGrid(gameState)
-                .animate()
-                .fadeIn(delay: 500.ms, duration: 500.ms)
-                .slideY(begin: 0.1, end: 0),
-            const SizedBox(height: 24),
+                // Core Stats Section
+                _buildCoreStatsHeader()
+                    .animate()
+                    .fadeIn(delay: 400.ms, duration: 500.ms),
+                SizedBox(height: itemSpacing * 0.7),
+                _buildStatsGrid(gameState)
+                    .animate()
+                    .fadeIn(delay: 500.ms, duration: 500.ms)
+                    .slideY(begin: 0.1, end: 0),
+                SizedBox(height: itemSpacing),
 
-            // Today's Progress Card
-            _buildTodayProgressCard(gameState, completedQuests, totalQuests, xpEarnedToday)
-                .animate()
-                .fadeIn(delay: 600.ms, duration: 500.ms)
-                .slideY(begin: 0.1, end: 0),
-            const SizedBox(height: 24),
-
-            const SizedBox(height: 100),
-          ],
-        ),
+                // Today's Progress Card
+                _buildTodayProgressCard(gameState, completedQuests, totalQuests, xpEarnedToday)
+                    .animate()
+                    .fadeIn(delay: 600.ms, duration: 500.ms)
+                    .slideY(begin: 0.1, end: 0),
+                SizedBox(height: MediaQuery.of(context).padding.bottom + itemSpacing),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -149,84 +155,96 @@ class _DashboardScreenState extends State<DashboardScreen>
     final progress = gameState.levelProgress;
     final percentage = (progress * 100).round();
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Experience',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              Text(
-                '${gameState.xp} / ${gameState.xpToNextLevel} XP',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+    return Builder(
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey[200]!),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Container(
-              height: 12,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Stack(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  FractionallySizedBox(
-                    widthFactor: progress,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
-                        ),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
+                  Text(
+                    'Experience',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    '${gameState.xp} / ${gameState.xpToNextLevel} XP',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.trending_up, size: 14, color: Colors.grey[500]),
-              const SizedBox(width: 4),
-              Text(
-                '$percentage% to next level',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[500],
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[800]
+                        : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Stack(
+                    children: [
+                      FractionallySizedBox(
+                        widthFactor: progress,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.trending_up,
+                    size: 14,
+                    color: Colors.grey[500],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$percentage% to next level',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -322,7 +340,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -393,7 +411,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -426,7 +444,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: LinearProgressIndicator(
               value: value / 100,
               minHeight: 8,
-              backgroundColor: Colors.grey[200],
+              backgroundColor: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.grey[800] 
+                  : Colors.grey[200],
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
@@ -439,7 +459,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -491,7 +511,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).scaffoldBackgroundColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -501,19 +521,48 @@ class _DashboardScreenState extends State<DashboardScreen>
         ],
       ),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(Icons.home, 'Home', 0),
-              _buildNavItem(Icons.my_location, 'Quests', 1),
-              _buildNavItem(Icons.spa, 'Life', 2),
-              _buildNavItem(Icons.trending_up, 'Stats', 3),
-              _buildNavItem(Icons.emoji_events, 'Badges', 4),
-              _buildNavItem(Icons.settings, 'Settings', 5),
-            ],
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final horizontalPadding = constraints.maxWidth * 0.02;
+            final verticalPadding = constraints.maxHeight * 0.01;
+            
+            return Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: _buildNavItem(Icons.home, 'Home', 0),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: _buildNavItem(Icons.my_location, 'Quests', 1),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: _buildNavItem(Icons.spa, 'Life', 2),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: _buildNavItem(Icons.trending_up, 'Stats', 3),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: _buildNavItem(Icons.emoji_events, 'Badges', 4),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: _buildNavItem(Icons.settings, 'Settings', 5),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -521,37 +570,59 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildNavItem(IconData icon, String label, int index) {
     final isSelected = _currentIndex == index;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        setState(() => _currentIndex = index);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final iconSize = constraints.maxWidth * 0.045;
+        final fontSize = constraints.maxWidth * 0.025;
+        final spacing = constraints.maxHeight * 0.002;
+        
+        return GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            setState(() => _currentIndex = index);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: EdgeInsets.symmetric(
+              horizontal: constraints.maxWidth * 0.01,
+              vertical: constraints.maxHeight * 0.008,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.transparent,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Flexible(
+                  flex: 1,
+                  child: Icon(
+                    icon,
+                    size: iconSize.clamp(16.0, 20.0),
+                    color: isSelected ? Colors.purple[700] : Colors.grey[500],
+                  ),
+                ),
+                SizedBox(height: spacing),
+                Flexible(
+                  flex: 1,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: fontSize.clamp(9.0, 11.0),
+                      color: isSelected ? Colors.purple[700] : Colors.grey[500],
+                      fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: isSelected ? Colors.purple[700] : Colors.grey[500],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: isSelected ? Colors.purple[700] : Colors.grey[500],
-                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

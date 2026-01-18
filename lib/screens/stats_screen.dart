@@ -4,8 +4,33 @@ import 'package:fl_chart/fl_chart.dart';
 import '../providers/game_provider.dart';
 import '../providers/life_provider.dart';
 
-class StatsScreen extends StatelessWidget {
+class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
+
+  @override
+  State<StatsScreen> createState() => _StatsScreenState();
+}
+
+class _StatsScreenState extends State<StatsScreen> {
+  List<int>? _stepsHistory;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_stepsHistory == null) {
+      _loadStepsHistory();
+    }
+  }
+
+  Future<void> _loadStepsHistory() async {
+    final gameProvider = Provider.of<GameProvider>(context, listen: false);
+    final history = await gameProvider.getStepsForLastDays(7);
+    if (mounted) {
+      setState(() {
+        _stepsHistory = history;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,19 +44,21 @@ class StatsScreen extends StatelessWidget {
         final screenTimeHours = gameState.totalScreenTimeMinutes / 60;
         final steps = gameState.stepsToday;
 
-        return SafeArea(
-          child: SingleChildScrollView(
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: SafeArea(
+            child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
-                const Text(
+                Text(
                   'Your Stats',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -61,7 +88,7 @@ class StatsScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Movement Card
-                _buildMovementCard(steps),
+                _buildMovementCard(steps, gameProvider),
                 const SizedBox(height: 24),
 
                 // Impact Alert
@@ -74,6 +101,7 @@ class StatsScreen extends StatelessWidget {
                 const SizedBox(height: 80), // Bottom padding
               ],
             ),
+          ),
           ),
         );
       },
@@ -150,7 +178,7 @@ class StatsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -211,7 +239,7 @@ class StatsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -370,7 +398,7 @@ class StatsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -556,7 +584,7 @@ class StatsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -714,14 +742,17 @@ class StatsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMovementCard(int steps) {
-    final stepsData = [8500.0, 12000.0, 10500.0, 9800.0, 11200.0, 15000.0, 13500.0];
+  Widget _buildMovementCard(int steps, GameProvider gameProvider) {
+    final stepsData = _stepsHistory != null
+        ? _stepsHistory!.map((s) => s.toDouble()).toList()
+        : [steps.toDouble(), steps.toDouble(), steps.toDouble(), steps.toDouble(), steps.toDouble(), steps.toDouble(), steps.toDouble()];
+    final maxSteps = stepsData.isEmpty ? 16000.0 : (stepsData.reduce((a, b) => a > b ? a : b) * 1.2).clamp(5000.0, 20000.0);
     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),
@@ -759,7 +790,7 @@ class StatsScreen extends StatelessWidget {
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: 16000,
+                maxY: maxSteps,
                 barTouchData: BarTouchData(enabled: false),
                 titlesData: FlTitlesData(
                   show: true,
@@ -859,12 +890,14 @@ class StatsScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        '75k',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      Text(
+                        _stepsHistory != null
+                            ? '${(_stepsHistory!.fold<int>(0, (sum, s) => sum + s) / 1000).toStringAsFixed(1)}k'
+                            : '${(steps * 7 / 1000).toStringAsFixed(1)}k',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'Above average!',
+                        steps >= 10000 ? 'Above average!' : 'Keep moving!',
                         style: TextStyle(fontSize: 11, color: Colors.green[600]),
                       ),
                     ],
@@ -920,7 +953,7 @@ class StatsScreen extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: 0.65,
                     minHeight: 8,
-                    backgroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).cardColor,
                     valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF97316)),
                   ),
                 ),
@@ -982,7 +1015,7 @@ class StatsScreen extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: 0.80,
                     minHeight: 8,
-                    backgroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).cardColor,
                     valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF22C55E)),
                   ),
                 ),
@@ -1014,7 +1047,7 @@ class StatsScreen extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: 0.72,
                     minHeight: 8,
-                    backgroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).cardColor,
                     valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
                   ),
                 ),

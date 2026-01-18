@@ -310,17 +310,17 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
     final progress = 1 - (_remainingSeconds / _totalSeconds);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0f0f1a),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Theme.of(context).iconTheme.color),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           _isBreak ? '☕ Break Time' : '🎯 Focus Mode',
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
         ),
       ),
       body: SafeArea(

@@ -48,13 +48,11 @@ class MusicService {
       _startTime = DateTime.now();
       
       // Create new session if none exists
-      if (_currentSession == null) {
-        _currentSession = MusicSession(
+      _currentSession ??= MusicSession(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           startedAt: _startTime!,
           source: MusicSource.other,
         );
-      }
     }
   }
 

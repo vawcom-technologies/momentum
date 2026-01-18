@@ -17,21 +17,21 @@ class _JournalScreenState extends State<JournalScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0f0f1a),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Theme.of(context).iconTheme.color),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           '📝 Journal',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
+            icon: Icon(Icons.add, color: Theme.of(context).iconTheme.color),
             onPressed: () => _showNewEntrySheet(context),
           ),
         ],
@@ -244,7 +244,7 @@ class _JournalScreenState extends State<JournalScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Theme.of(context).cardColor.withOpacity(0.3),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -280,7 +280,7 @@ class _JournalScreenState extends State<JournalScreen> {
                     decoration: BoxDecoration(
                       color: journalEntry != null
                           ? _getMoodColor(journalEntry.mood).withOpacity(0.2)
-                          : Colors.white.withOpacity(0.1),
+                          : Theme.of(context).cardColor.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
@@ -328,9 +328,9 @@ class _JournalScreenState extends State<JournalScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Theme.of(context).cardColor.withOpacity(0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Theme.of(context).cardColor.withOpacity(0.3)),
       ),
       child: Row(
         children: [
@@ -387,7 +387,7 @@ class _JournalScreenState extends State<JournalScreen> {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Theme.of(context).cardColor.withOpacity(0.3),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -494,7 +494,7 @@ class _JournalScreenState extends State<JournalScreen> {
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? _getMoodColor(mood).withOpacity(0.3)
-                                    : Colors.white.withOpacity(0.1),
+                                    : Theme.of(context).cardColor.withOpacity(0.3),
                                 borderRadius: BorderRadius.circular(16),
                                 border: isSelected
                                     ? Border.all(color: _getMoodColor(mood), width: 2)
@@ -531,7 +531,7 @@ class _JournalScreenState extends State<JournalScreen> {
                           hintText: 'Write your thoughts...',
                           hintStyle: TextStyle(color: Colors.grey[600]),
                           filled: true,
-                          fillColor: Colors.white.withOpacity(0.1),
+                          fillColor: Theme.of(context).cardColor.withOpacity(0.3),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
@@ -559,7 +559,7 @@ class _JournalScreenState extends State<JournalScreen> {
                                 hintText: 'Add something...',
                                 hintStyle: TextStyle(color: Colors.grey[600]),
                                 filled: true,
-                                fillColor: Colors.white.withOpacity(0.1),
+                                fillColor: Theme.of(context).cardColor.withOpacity(0.3),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
@@ -731,7 +731,7 @@ class _JournalScreenState extends State<JournalScreen> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? const Color(0xFF8B5CF6)
-                        : Colors.white.withOpacity(0.1),
+                        : Theme.of(context).cardColor.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),

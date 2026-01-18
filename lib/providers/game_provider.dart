@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/game_state.dart';
@@ -5,6 +6,7 @@ import '../models/quest.dart';
 import '../models/boss_battle.dart';
 import '../services/game_service.dart';
 import '../services/storage_service.dart';
+import '../services/health_service.dart';
 import '../widgets/spin_wheel.dart';
 
 export '../models/quest.dart' show QuestStatus, QuestType;
@@ -21,6 +23,8 @@ class GameProvider with ChangeNotifier {
   bool _showComboAnimation = false;
   bool _showAchievementUnlock = false;
   String _unlockedAchievementId = '';
+  
+  Timer? _healthTrackingTimer;
 
   GameState? get gameState => _gameState;
   bool get isLoading => _isLoading;
@@ -80,8 +84,45 @@ class GameProvider with ChangeNotifier {
       }
     }
 
+    // Initialize health tracking
+    _initializeHealthTracking();
+
     _isLoading = false;
     notifyListeners();
+  }
+
+  void _initializeHealthTracking() {
+    // Request permissions first
+    HealthService.requestPermissions();
+    
+    // Update steps immediately
+    _updateStepsFromHealth();
+    
+    // Set up periodic updates every 5 minutes
+    _healthTrackingTimer?.cancel();
+    _healthTrackingTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      _updateStepsFromHealth();
+    });
+  }
+
+  Future<void> _updateStepsFromHealth() async {
+    try {
+      final steps = await HealthService.getTodaySteps();
+      if (steps > 0 && _gameState != null) {
+        // Only update if steps have changed to avoid unnecessary saves
+        if (_gameState!.stepsToday != steps) {
+          await updateSteps(steps);
+        }
+      }
+    } catch (e) {
+      print('Error updating steps from health: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _healthTrackingTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> completeOnboarding() async {
@@ -213,6 +254,21 @@ class GameProvider with ChangeNotifier {
     
     await _storageService.saveGameState(_gameState!);
     notifyListeners();
+  }
+
+  // Get steps for the last N days (for charts)
+  Future<List<int>> getStepsForLastDays(int days) async {
+    try {
+      return await HealthService.getStepsForLastDays(days);
+    } catch (e) {
+      print('Error getting steps history: $e');
+      return List.filled(days, 0);
+    }
+  }
+
+  // Manually refresh steps from health data
+  Future<void> refreshSteps() async {
+    await _updateStepsFromHealth();
   }
 
   Future<void> addActionXp(int xp, {

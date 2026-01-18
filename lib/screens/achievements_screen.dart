@@ -18,19 +18,21 @@ class AchievementsScreen extends StatelessWidget {
         final unlockedCount = achievements.where((a) => a['unlocked'] == true).length;
         final totalCount = achievements.length;
 
-        return SafeArea(
-          child: SingleChildScrollView(
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: SafeArea(
+            child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
-                const Text(
+                Text(
                   'Achievements',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -50,7 +52,7 @@ class AchievementsScreen extends StatelessWidget {
                 // Achievements List
                 ...achievements.map((achievement) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _buildAchievementCard(achievement),
+                      child: _buildAchievementCard(context, achievement),
                     )),
 
                 const SizedBox(height: 16),
@@ -61,6 +63,7 @@ class AchievementsScreen extends StatelessWidget {
                 const SizedBox(height: 80), // Bottom padding
               ],
             ),
+          ),
           ),
         );
       },
@@ -217,7 +220,7 @@ class AchievementsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAchievementCard(Map<String, dynamic> achievement) {
+  Widget _buildAchievementCard(BuildContext context, Map<String, dynamic> achievement) {
     final isUnlocked = achievement['unlocked'] == true;
     final rarity = achievement['rarity'] as String;
     final hasProgress = achievement['progress'] != null && !isUnlocked;
@@ -316,7 +319,7 @@ class AchievementsScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: isUnlocked ? Colors.black87 : Colors.grey[500],
+                            color: isUnlocked ? Theme.of(context).textTheme.bodyLarge?.color : Colors.grey[500],
                           ),
                         ),
                       ),
@@ -377,7 +380,9 @@ class AchievementsScreen extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: achievement['progress'] / achievement['total'],
                         minHeight: 8,
-                        backgroundColor: Colors.grey[200],
+                        backgroundColor: Theme.of(context).brightness == Brightness.dark 
+                            ? Colors.grey[800] 
+                            : Colors.grey[200],
                         valueColor: AlwaysStoppedAnimation<Color>(
                           LinearGradient(
                             colors: [getRarityGradientStart(), getRarityGradientEnd()],
